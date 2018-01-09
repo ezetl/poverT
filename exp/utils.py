@@ -120,7 +120,7 @@ def prepare_data(x, y, test_size=0.2, xgb_format=True):
 
     if xgb_format:
         dtrain = xgb.DMatrix(dtrain, label=Y_train)
-        if dtest:
+        if test_size:
             dtest = xgb.DMatrix(dtest)
 
     return dtrain, dtest, Y_train, Y_test
