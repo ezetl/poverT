@@ -1,6 +1,8 @@
 from pathlib import Path
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import resample
 from utils import *
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +11,7 @@ import scipy as sc
 import xgboost as xgb
 
 
-DATA_DIR = Path.cwd() / '..' / 'data'
+DATA_DIR = Path.cwd() / '..' / '..' / 'data'
 DATA_PATHS = {
     'A': {
         'train': str(DATA_DIR / 'A_hhold_train.csv'), 
@@ -22,6 +24,21 @@ DATA_PATHS = {
     'C': {
         'train': str(DATA_DIR / 'C_hhold_train.csv'), 
         'test': str(DATA_DIR / 'C_hhold_test.csv')
+    }
+}
+
+DATA_PATHS_IND = {
+    'A': {
+        'train': str(DATA_DIR / 'A_indiv_train.csv'), 
+        'test': str(DATA_DIR / 'A_indiv_test.csv')
+    }, 
+    'B': {
+        'train': str(DATA_DIR / 'B_indiv_train.csv'), 
+        'test': str(DATA_DIR / 'B_indiv_test.csv')
+    },
+    'C': {
+        'train': str(DATA_DIR / 'C_indiv_train.csv'), 
+        'test': str(DATA_DIR / 'C_indiv_test.csv')
     }
 }
 
@@ -106,10 +123,9 @@ def make_country_sub(preds, test_feat, country):
     return country_sub[["country", "poor"]]
 
 
-from sklearn.ensemble import RandomForestClassifier
 
 
-def prepare_data(x, y, test_size=0.2, xgb_format=True):
+def prepare_data(x, y, test_size=0.2, xgb_format=False):
     if test_size == 0:
         dtrain = x
         Y_train = y
@@ -163,10 +179,30 @@ def log_loss(yt, yp):
 # Cross Validate
 def cross_validate(x_train, x_test, y_train, y_test, model):
     test_loss = None
-    if x_test:
+    if x_test is not None:
         preds = model.predict(x_test)
         test_loss = log_loss(preds, y_test)
 
     preds_train = model.predict(x_train)
     train_loss = log_loss(preds_train, y_train)
     return train_loss, test_loss
+
+
+def balance(df):
+    poor = df[df['poor'] == True]
+    not_poor = df[df['poor'] == False]
+    poor_upsampled = resample(poor, 
+                              replace=True,
+                              n_samples=len(not_poor),
+                              random_state=42)
+    return pd.concat([poor_upsampled, not_poor])
+
+
+def encode_dataset(raw_df):
+    df_bala = balance(raw_df)
+    df_reduc = filter_columns(df_bala.drop('poor', axis=1))
+    X_train = pre_process_data(df_reduc)
+    raw_df.poor.fillna(False, inplace=True)
+    y_train = np.ravel(df_bala.poor.astype(int))
+    return X_train, y_train
+
