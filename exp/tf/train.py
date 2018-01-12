@@ -54,13 +54,11 @@ model_c = tf.estimator.LinearClassifier(
 a_feat_cols = get_feature_columns(ax_train)
 a_regressor = tf.estimator.DNNRegressor(
     feature_columns=a_feat_cols,
-    hidden_units=[100, 500, 50],
+    hidden_units=[100, 1000, 100, 100, 50],
     model_dir=str(MODEL_DIR / 'a_dnn_model.tf')
 )
 
-
 a_regressor.train(input_fn=get_input_fn(ax_train, ay_train, features=ax_train.columns.tolist()), steps=5000)
-
 
 ev = a_regressor.evaluate(
     input_fn=get_input_fn(ax_test, ay_test, features=ax_test.columns.tolist(), num_epochs=1, shuffle=False))
