@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 from pathlib import Path
-from sklearn.utils import resample
+from tf_utils import *
 import pandas as pd
-import sys
 import tensorflow as tf
-sys.path.append(str(Path.cwd() / '..' / 'notebooks'))
 # export PYTHONPATH=~/Software/xgboost/python-package<Paste>
-from utils import *
 
 
 MODEL_DIR = Path.cwd() / 'models'
@@ -27,40 +24,42 @@ bx_train, bx_test, by_train, by_test = prepare_data(bX, by)
 cx_train, cx_test, cy_train, cy_test = prepare_data(cX, cy)
 
 
-def get_feature_columns(df):
-    feat_cols = [] 
-    for col in df: 
-        feat_cols.append(tf.feature_column.numeric_column(col))
-    return feat_cols
+a_model, a_loss = train_evaluate(ax_train, ay_train, ax_test, ay_test, str(MODEL_DIR / 'a_dnn_model_replica.tf'))
+b_model, b_loss = train_evaluate(bx_train, by_train, bx_test, by_test, str(MODEL_DIR / 'b_dnn_model.tf'))
+c_model, c_loss = train_evaluate(cx_train, cy_train, cx_test, cy_test, str(MODEL_DIR / 'c_dnn_model.tf'))
 
-
-def get_input_fn(x, y, features=None, num_epochs=800, shuffle=True):
-  return tf.estimator.inputs.pandas_input_fn(
-      x=pd.DataFrame({k: x[k].values for k in features}),
-      y=pd.Series(y),
-      num_epochs=num_epochs,
-      shuffle=shuffle)
-
-
-model_a = tf.estimator.LinearClassifier(
-    model_dir=MODEL_DIR, feature_columns=get_feature_columns(ax_train))
-model_b = tf.estimator.LinearClassifier(
-    model_dir=MODEL_DIR, feature_columns=get_feature_columns(bx_train))
-model_c = tf.estimator.LinearClassifier(
-    model_dir=MODEL_DIR, feature_columns=get_feature_columns(cx_train))
-
-
-
-a_feat_cols = get_feature_columns(ax_train)
-a_regressor = tf.estimator.DNNRegressor(
-    feature_columns=a_feat_cols,
-    hidden_units=[100, 1000, 100, 100, 50],
-    model_dir=str(MODEL_DIR / 'a_dnn_model.tf')
+print("Loss Country A: {0:f}".format(a_loss))
+print("Loss Country B: {0:f}".format(b_loss))
+print("Loss Country C: {0:f}".format(c_loss))
+print("Averaged loss: {0:f}".format(
+    average_loss(
+        [a_loss,  b_loss, c_loss], 
+        [len(ax_train), len(bx_train), len(cx_train)]
+    ))
 )
 
-a_regressor.train(input_fn=get_input_fn(ax_train, ay_train, features=ax_train.columns.tolist()), steps=5000)
 
-ev = a_regressor.evaluate(
-    input_fn=get_input_fn(ax_test, ay_test, features=ax_test.columns.tolist(), num_epochs=1, shuffle=False))
 
-print("Loss Country A: {0:f}".format(ev["loss"]))
+## Prepare submission:
+# load test data
+a_test = pd.read_csv(DATA_PATHS['A']['test'], index_col='id')
+#a_keep = [e.split('_')[0] for e in ax_train.columns.tolist()]
+#a_keep = [elem for n, elem in enumerate(a_keep) if elem not in L[:n]]
+a_test = prepare_submission_data(a_test, ax_train.columns.tolist())
+a_preds = get_predictions(a_model, a_test)
+a_sub = make_country_sub(a_preds, a_test, 'A')
+
+b_test = pd.read_csv(DATA_PATHS['B']['test'], index_col='id')
+b_test = prepare_submission_data(b_test, bx_train.columns.tolist())
+b_preds = get_predictions(b_model, b_test)
+b_sub = make_country_sub(b_preds, b_test, 'B')
+
+c_test = pd.read_csv(DATA_PATHS['C']['test'], index_col='id')
+c_test = prepare_submission_data(c_test, cx_train.columns.tolist())
+c_preds = get_predictions(c_model, c_test)
+c_sub = make_country_sub(c_preds, c_test, 'C')
+
+submission = pd.concat([a_sub, b_sub, c_sub])
+submission[submission.poor < 0] = 0
+submission.to_csv('submission_dnn.csv')
+print("Submission saved.")

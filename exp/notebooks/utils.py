@@ -108,6 +108,7 @@ def filter_columns(df):
     to_keep = set(df.columns.tolist()) - set(to_del)
     return df[list(to_keep)]
 
+
 def make_country_sub(preds, test_feat, country):
     # make sure we code the country correctly
     country_codes = ['A', 'B', 'C']
@@ -121,8 +122,6 @@ def make_country_sub(preds, test_feat, country):
     # add the country code for joining later
     country_sub["country"] = country
     return country_sub[["country", "poor"]]
-
-
 
 
 def prepare_data(x, y, test_size=0.2, xgb_format=False):
@@ -195,13 +194,14 @@ def balance(df):
                               replace=True,
                               n_samples=len(not_poor),
                               random_state=42)
-    return pd.concat([poor_upsampled, not_poor])
+    res = pd.concat([poor_upsampled, not_poor])
+    return res.sample(frac=1)
 
 
 def encode_dataset(raw_df):
     df_bala = balance(raw_df)
-    df_reduc = filter_columns(df_bala.drop('poor', axis=1))
-    X_train = pre_process_data(df_reduc)
+    #df_bala = filter_columns(df_bala.drop('poor', axis=1))
+    X_train = pre_process_data(df_bala)
     raw_df.poor.fillna(False, inplace=True)
     y_train = np.ravel(df_bala.poor.astype(int))
     return X_train, y_train
