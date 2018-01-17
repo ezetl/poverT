@@ -1,3 +1,4 @@
+from imblearn.over_sampling import SMOTE
 from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -136,7 +137,7 @@ def prepare_data(x, y, test_size=0.2, xgb_format=False):
     if xgb_format:
         dtrain = xgb.DMatrix(dtrain, label=Y_train)
         if test_size:
-            dtest = xgb.DMatrix(dtest)
+            dtest = xgb.DMatrix(dtest, label=Y_test)
 
     return dtrain, dtest, Y_train, Y_test
 
@@ -156,13 +157,16 @@ def train_rf_model(features, labels, **kwargs):
     return model
 
 
-def train_xgb_model(dtrain, params=None, num_round=100):
+def train_xgb_model(dtrain, deval=None, params=None, num_round=100, early_stopping=500):
     if params is None:
-        params = {'max_depth': 4, 'eta': 100, 'silent': 1, 'objective': 'reg:logistic'}
+        params = {'max_depth': 4, 'eta': 0.01, 'silent': 1, 'objective': 'reg:logistic'}
 
-    bst = xgb.train(params, dtrain, num_round)
-
+    if deval is not None:
+        bst = xgb.train(params, dtrain, num_round, evals=deval, early_stopping_rounds=early_stopping, verbose_eval=True)
+    else:
+        bst = xgb.train(params, dtrain, num_round, verbose_eval=True)
     return bst
+
 
 # Compute loss
 # -log P(yt|yp) = -(yt log(yp) + (1 - yt) log(1 - yp))
@@ -198,6 +202,30 @@ def balance(df):
     return res.sample(frac=1)
 
 
+def balance_up_down(df):
+    poor = df[df['poor'] == True]
+    not_poor = df[df['poor'] == False]
+    
+    not_poor_downsampled = resample(not_poor, 
+                              replace=True,
+                              n_samples=int(len(not_poor) * 0.6),
+                              random_state=42)
+    
+    poor_upsampled = resample(poor, 
+                              replace=True,
+                              n_samples=len(not_poor_downsampled),
+                              random_state=42)
+    res = pd.concat([poor_upsampled, not_poor_downsampled])
+    return res.sample(frac=1)
+ 
+
+def balance_smote(x, y):
+    sm = SMOTE(random_state=42)
+    X_res, y_res = sm.fit_sample(x, y)
+    return X_res, y_res
+
+
+
 def encode_dataset(raw_df):
     df_bala = balance(raw_df)
     #df_bala = filter_columns(df_bala.drop('poor', axis=1))
@@ -206,3 +234,25 @@ def encode_dataset(raw_df):
     y_train = np.ravel(df_bala.poor.astype(int))
     return X_train, y_train
 
+
+def get_preds(test_set, model, orig_cols, keep_cols):
+    test_set = test_set[keep_cols]
+    test_set = pre_process_data(test_set)
+    
+    # Delete new columns that were not in training set
+    diff = set(test_set.columns.tolist()) - set(orig_cols)
+    
+    test_set = test_set[test_set.columns.difference(list(diff))]
+    
+    # Add dummy columns that are not in the test set
+    diff = set(orig_cols) - set(test_set.columns.tolist())
+    test_set = test_set.assign(**{c: 0 for c in a_diff})
+    
+    # Reorder columns in the original way so XGBoost does not explode
+    test_set = test_set[orig_cols]
+    
+    test_set.fillna(0, inplace=True)
+    
+    testxgb = xgb.DMatrix(test_set)
+    
+    return  model.predict(testxgb)
