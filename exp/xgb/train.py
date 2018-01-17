@@ -52,7 +52,7 @@ xgb_cx_train, xgb_cx_test, xgb_cy_train, xgb_cy_test = prepare_data(cX_train, cy
 
 ## 2 - TRAIN MODELS
 
-num_round = 8000
+num_round = 10
 params = {'max_depth': 3, 'eta': 0.01, 'silent': 1, 'lambda': 0.8, 'alpha': 0.8, 'lambda_bias': 0.5, 'min_child_weight': 2, 'objective': 'binary:logistic', 'eval_metric': 'logloss', 'seed': 42}
 
 early_stopping = 500

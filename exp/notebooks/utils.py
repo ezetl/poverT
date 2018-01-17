@@ -235,7 +235,7 @@ def encode_dataset(raw_df):
     return X_train, y_train
 
 
-def get_preds(test_set, model, orig_cols, keep_cols):
+def get_submission_preds(test_set, model, orig_cols, keep_cols):
     test_set = test_set[keep_cols]
     test_set = pre_process_data(test_set)
     
@@ -246,7 +246,7 @@ def get_preds(test_set, model, orig_cols, keep_cols):
     
     # Add dummy columns that are not in the test set
     diff = set(orig_cols) - set(test_set.columns.tolist())
-    test_set = test_set.assign(**{c: 0 for c in a_diff})
+    test_set = test_set.assign(**{c: 0 for c in diff})
     
     # Reorder columns in the original way so XGBoost does not explode
     test_set = test_set[orig_cols]
