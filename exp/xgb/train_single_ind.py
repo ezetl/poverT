@@ -20,14 +20,6 @@ def learning_rates(boosting_round, num_boost_round):
     else:
         return 0.005
 
-# WITHOUT INDIV DATA
-#ROC AUC Results
-#       test     train
-#A  0.934908  0.986354
-#Loss Results
-#       test     train
-#A  0.368073  0.275549
-
 
 ## 1 - PREPARE DATASETS
 train_set = pd.read_csv(DATA_PATHS[COUNTRY]['train'], index_col='id')
@@ -57,17 +49,14 @@ params = {
     'eta': 0.005,
     'silent': 1,
     'lambda': 1,
-                                         #                     test     train          test     train
-                                         # A: Gamma 5: ROC 0.947926  0.961984 LOSS 0.297549  0.265718   (para la proxima usar 20K iteraciones asi sigue bajando)
-    'gamma': 5,                          # B: Gamma 5: ROC 0.848453  0.887216 LOSS 0.216402  0.204157   (10K iteraciones)
-                                         # C: Gamma 5: ROC 0.997975  0.99878  LOSS 0.03478   0.030321   (10K iteraciones)
+    'gamma': 5,
     'alpha': 8,
     'lambda_bias': 8,
     'min_child_weight': 2,
     'objective': 'binary:logistic',
     'eval_metric': 'logloss',
-    'subsample': 0.8,                    # Avoid overfitting
-    'colsample_bytree': 0.8,             # Avoid overfitting
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
     'seed': 42
 }
 
@@ -113,22 +102,18 @@ print(losses)
 ## 4 - PREPARE SUBMISSION
 # Load and prepare csvs
 test_set = pd.read_csv(DATA_PATHS[COUNTRY]['test'], index_col='id')
-
 test_set_ind = pd.read_csv(DATA_PATHS_IND[COUNTRY]['test'], index_col='id')
 test_set_ind = prepare_indiv_hhold_set(test_set_ind)
-
 test_set = test_set.merge(test_set_ind, how='left', left_index=True, right_index=True)
 
 # Get predictions
 preds = get_submission_preds(test_set, xgb_model, X_train.columns.tolist(), train_reduc.columns.tolist())
 
+# Clean results
 sub = make_country_sub(preds, test_set, COUNTRY)
 grouped_sub = sub.groupby(sub.index.get_level_values(0)).mean()
 grouped_sub = pd.DataFrame(sub)
 grouped_sub['country'] = 'A'
-
-# As we use indiv data, we have to average all the repeated predictions (i.e. we have repeated indices)
-
 
 #TODO: this line is unnecessary
 submission = pd.concat([grouped_sub])
