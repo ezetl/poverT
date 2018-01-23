@@ -4,11 +4,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import resample
+from tqdm import tqdm
 from utils import *
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy as sc
+import scipy as sc
+import scipy.stats as ss
 import xgboost as xgb
 
 
@@ -256,3 +259,73 @@ def get_submission_preds(test_set, model, orig_cols, keep_cols):
     testxgb = xgb.DMatrix(test_set)
     
     return  model.predict(testxgb)
+
+
+def cramers_corrected_stat(confusion_matrix):
+    """ calculate Cramers V statistic for categorial-categorial association.
+        uses correction from Bergsma and Wicher, 
+        Journal of the Korean Statistical Society 42 (2013): 323-328
+    """
+    chi2 = ss.chi2_contingency(confusion_matrix)[0]
+    n = confusion_matrix.sum().sum()
+    phi2 = chi2/n
+    r,k = confusion_matrix.shape
+    phi2corr = max(0, phi2 - ((k-1)*(r-1))/(n-1))    
+    rcorr = r - ((r-1)**2)/(n-1)
+    kcorr = k - ((k-1)**2)/(n-1)
+    return np.sqrt(phi2corr / min( (kcorr-1), (rcorr-1)))
+
+
+def get_highly_correlated_columns(df):
+    df_objs = df.select_dtypes(include=['O'])
+    #del df_objs['country']
+    corr_matrix = pd.DataFrame(columns=df_objs.columns, index=df_objs.columns.tolist())
+    with tqdm(total=len(corr_matrix.columns.tolist()) * len(corr_matrix.columns.tolist())) as pbar:
+        for col1 in df_objs.columns.tolist():
+            for col2 in df_objs.columns.tolist():
+                if col1 != col2:
+                    confusion_matrix = pd.crosstab(df_objs[col1], df_objs[col2])
+                    corr = cramers_corrected_stat(confusion_matrix)
+                else:
+                    corr = 1
+                corr_matrix.loc[col1, col2] = corr
+                pbar.update(1)
+    
+    cols = {}
+    for c1 in corr_matrix.columns.tolist():
+        s = corr_matrix.loc[c1]
+        s = s[s > 0.5]
+        s = list(s.index)
+        s.remove(c1)
+        cols[c1] = s
+
+    cols = {k: cols[k] for k in cols if cols[k]}
+    return cols
+
+
+def categorize_continous(df, num_cats=3):
+    df_nums = df.select_dtypes(include=['int64', 'float64'])
+    for col in df_nums.columns.tolist():
+        df['{}_{}cats'.format(col, num_cats)] = pd.cut(df_nums[col], num_cats, labels=[str(e) for e in range(num_cats)])
+    return df
+
+
+def prepare_indiv_hhold_set(train_set_ind):
+    # Lets categorize nums, lets standardize the nums then
+    train_set_ind_nums = train_set_ind.select_dtypes(include=['int64', 'float64'])
+    to_standar = train_set_ind_nums.columns.tolist()
+    to_standar.remove('iid')
+    train_set_ind_nums.fillna(0, inplace=True) 
+    train_set_ind_nums = categorize_continous(train_set_ind_nums.drop('iid', axis=1), num_cats=4)
+    # TODO: this is being normalized twice (one more time after I merge this with the main dataset
+    train_set_ind_nums[to_standar] = (train_set_ind_nums[to_standar] - train_set_ind_nums[to_standar].mean()) / train_set_ind_nums[to_standar].std()
+    train_set_ind[train_set_ind_nums.columns] = train_set_ind_nums
+    # Create new column with family members count
+    train_set_ind['fam_count'] = train_set_ind['iid'].groupby(train_set_ind['iid'].index.get_level_values(0)).count()
+    train_set_ind['fam_count'] = train_set_ind.fam_count.astype('category')
+    # Delete redundant columns (its information has already been encoded in other columns)
+    del train_set_ind['iid']
+    del train_set_ind['country']
+    if 'poor' in train_set_ind.columns.tolist():
+        del train_set_ind['poor']
+    return train_set_ind
