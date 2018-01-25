@@ -27,6 +27,8 @@ train_set_ind = pd.read_csv(DATA_PATHS_IND[COUNTRY]['train'], index_col='id')
 train_set_ind = prepare_indiv_hhold_set(train_set_ind)
 
 train_set = train_set.merge(train_set_ind, how='left', left_index=True, right_index=True)
+# We don't want repeated rows
+train_set.drop_duplicates(inplace=True)
 
 # We need to repreprocess the data with less columns
 print("Country {}".format(COUNTRY))
@@ -43,7 +45,7 @@ xgb_x_train, xgb_x_test, xgb_y_train, xgb_y_test = prepare_data(X_train, y_train
 
 
 # 2 - HYPERPARAMETERS OPT 
-num_round = 15000 
+num_round = 2000 
 params = {
     'max_depth': 15,
     'eta': 0.005,
@@ -102,6 +104,7 @@ print(losses)
 ## 4 - PREPARE SUBMISSION
 # Load and prepare csvs
 test_set = pd.read_csv(DATA_PATHS[COUNTRY]['test'], index_col='id')
+indexes = test_set.index.get_level_values(0)
 test_set_ind = pd.read_csv(DATA_PATHS_IND[COUNTRY]['test'], index_col='id')
 test_set_ind = prepare_indiv_hhold_set(test_set_ind)
 test_set = test_set.merge(test_set_ind, how='left', left_index=True, right_index=True)
@@ -112,11 +115,13 @@ preds = get_submission_preds(test_set, xgb_model, X_train.columns.tolist(), trai
 # Clean results
 sub = make_country_sub(preds, test_set, COUNTRY)
 grouped_sub = sub.groupby(sub.index.get_level_values(0)).mean()
-grouped_sub = pd.DataFrame(sub)
-grouped_sub['country'] = 'A'
+submission = pd.DataFrame(grouped_sub)
+submission['country'] = COUNTRY 
+# Reorder columns
+submission = submission[['country', 'poor']]
+# Reorder indexes
+submission = submission.reindex(indexes)
 
-#TODO: this line is unnecessary
-submission = pd.concat([grouped_sub])
 submission.to_csv('submission_recent_XGB_indiv_{}.csv'.format(COUNTRY))
 
 print("Submission prepared. Saving models")
