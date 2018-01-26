@@ -82,7 +82,7 @@ def pre_process_data(df, enforce_cols=None):
     return df
 
 def entropy(a):
-    return - sum( (a / sum(a)) * np.log((a / sum(a))))
+    return - sum( (a / (sum(a) + 1)) * np.log((a / (sum(a) + 1) + 1)))
 
 
 def get_entropies(df):

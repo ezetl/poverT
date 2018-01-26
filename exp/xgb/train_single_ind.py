@@ -45,7 +45,7 @@ xgb_x_train, xgb_x_test, xgb_y_train, xgb_y_test = prepare_data(X_train, y_train
 
 
 # 2 - HYPERPARAMETERS OPT 
-num_round = 2000 
+num_round = 7000 
 params = {
     'max_depth': 15,
     'eta': 0.005,
