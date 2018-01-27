@@ -326,6 +326,6 @@ def prepare_indiv_hhold_set(train_set_ind):
     # Delete redundant columns (its information has already been encoded in other columns)
     del train_set_ind['iid']
     del train_set_ind['country']
-    if 'poor' in train_set_ind.columns.tolist():
-        del train_set_ind['poor']
+    #if 'poor' in train_set_ind.columns.tolist():
+    #    del train_set_ind['poor']
     return train_set_ind
