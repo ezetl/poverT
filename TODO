@@ -1,0 +1,16 @@
+- Try a better upsampling technique (not just copying values)
+- I need to reach the baseline that is in the leaderboard (0.15), apparently, deleting only features
+
+- DONE Measure entropy in test set and use those columns to train (didnt work better)
+- DONE Brute force search of better columns to train (already implemented, very time consuming)
+- Add noise features to filter useless columns and tune hyperparams of XGBOOst
+- Search optimum setup on Country B, then in A. Country C already working great. Try:
+    - DONE Grid Search of hyperparameters, 
+    - DONE entropy (different threshold) (best is median)
+    - DONE (testing original metrics now) correlation (cramers)
+
+
+- DONE Avoid overfitting
+- DONE Try categorizing contonious columns. (did not work better)
+- PROGRESS Try adding features from indiv hhold
+- Prepare class to train each country, like an experiment class. Use Hyperband to optimize hyperparams

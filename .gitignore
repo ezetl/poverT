@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+exp/xgb/*.csv
+data/*.csv
+exp/xgb/logs
