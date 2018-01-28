@@ -13,3 +13,7 @@ dependencies:
 - scipy=0.19.1
 - progressbar2=3.34.3
 - jupyterlab
+- tqdm
+- pip
+pip:
+  - imbalanced-learn

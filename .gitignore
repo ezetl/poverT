@@ -103,3 +103,5 @@ ENV/
 exp/xgb/*.csv
 data/*.csv
 exp/xgb/logs
+exp/xgb/models/*.xgb
+*.pem
