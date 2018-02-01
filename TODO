@@ -12,5 +12,10 @@
 
 - DONE Avoid overfitting
 - DONE Try categorizing contonious columns. (did not work better)
-- PROGRESS Try adding features from indiv hhold
+- DONE Try adding features from indiv hhold (worked as before, no improvement)
+- Add features from indiv: 
+    - PROGRESS hamming distance between members of same class, std, mean, median
+    - PROGRESS euclidean distance of their answers as vectors, std, mean, median
+    - std/mean/median of other numerical values in indiv data
+- Try with neural net again
 - Prepare class to train each country, like an experiment class. Use Hyperband to optimize hyperparams

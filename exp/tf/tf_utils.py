@@ -33,10 +33,10 @@ def get_model(feat_cols, model_dir):
     )
 
 
-def train_evaluate(X, y, X_test, y_test, model_dir):
+def train_evaluate(X, y, X_test, y_test, epochs=500, model_dir='dnn.model.tf'):
     feat_cols = get_feature_columns(X)
     model = get_model(feat_cols, model_dir)
-    model.train(input_fn=get_input_fn(X, y, features=X.columns.tolist()))
+    model.train(input_fn=get_input_fn(X, y, features=X.columns.tolist(), num_epochs=epochs))
     ev = model.evaluate(
         input_fn=get_input_fn(X_test, y_test, features=X_test.columns.tolist(), num_epochs=1, shuffle=False))
     return model, ev["loss"]

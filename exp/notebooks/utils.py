@@ -1,6 +1,8 @@
 from imblearn.over_sampling import SMOTE
 from pathlib import Path
+from scipy.spatial.distance import pdist, squareform
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import resample
@@ -9,7 +11,6 @@ from utils import *
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy as sc
 import scipy as sc
 import scipy.stats as ss
 import xgboost as xgb
@@ -241,6 +242,9 @@ def encode_dataset(raw_df):
 def get_submission_preds(test_set, model, orig_cols, keep_cols):
     test_set = test_set[keep_cols]
     test_set = pre_process_data(test_set)
+    #TODO: testing...
+    test_set = get_distance(test_set, metric='hamming')
+    test_set = get_distance(test_set, metric='euclidean')
     
     # Delete new columns that were not in training set
     diff = set(test_set.columns.tolist()) - set(orig_cols)
@@ -322,10 +326,52 @@ def prepare_indiv_hhold_set(train_set_ind):
     train_set_ind[train_set_ind_nums.columns] = train_set_ind_nums
     # Create new column with family members count
     train_set_ind['fam_count'] = train_set_ind['iid'].groupby(train_set_ind['iid'].index.get_level_values(0)).count()
-    train_set_ind['fam_count'] = train_set_ind.fam_count.astype('category')
+    #train_set_ind['fam_count'] = train_set_ind.fam_count.astype('category')
     # Delete redundant columns (its information has already been encoded in other columns)
     del train_set_ind['iid']
     del train_set_ind['country']
     #if 'poor' in train_set_ind.columns.tolist():
     #    del train_set_ind['poor']
     return train_set_ind
+
+
+def get_distance(df, metric='hamming'):
+    dist_func = {
+        'hamming': hamming_dist,
+        'euclidean': euclidean_dist
+    }
+    only_bool_cols = [col for col in df.columns.tolist() if '_' in col]
+    indexes = list(set(df.index.get_level_values(0)))
+    avgs = []
+    medians = []
+    stds = []
+    for i in indexes:
+        tmp_df = df[df.index == i]
+        dist_matrix = dist_func[metric](tmp_df)
+        dist_matrix = np.array(
+                [dist_matrix[k, j] for k in range(dist_matrix.shape[0]) for j in range(dist_matrix.shape[1]) if k!=j ])
+
+        # Lets count the decimals only
+        if metric == 'hamming':
+            dist_matrix = 100 * (1 - dist_matrix)
+
+        # TODO: try avg/std/median of each individual w.r.t.t.o instead of the whole household avg/std/median
+        avg = np.mean(dist_matrix)
+        std = np.std(dist_matrix)
+        median = np.median(dist_matrix)
+
+        avgs.extend([avg] * len(tmp_df))
+        stds.extend([std] * len(tmp_df))
+        medians.extend([median] * len(tmp_df))
+
+    df[metric+'_mean'] = avgs
+    df[metric+'_std'] = stds 
+    df[metric+'_median'] = medians
+    return df 
+
+def hamming_dist(df):
+    return 1 - pairwise_distances(df, metric = "hamming") 
+
+def euclidean_dist(df):
+    distances = pdist(df, metric='euclidean')
+    return squareform(distances)

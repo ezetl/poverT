@@ -60,6 +60,9 @@ train_reduc.drop_duplicates(inplace=True)
 
 # Normalize numeric columns, create dummies
 X_train = pre_process_data(train_reduc.drop(['poor'], axis=1))
+X_train = get_distance(X_train, metric='hamming')
+X_train = get_distance(X_train, metric='euclidean')
+
 train_reduc.poor.fillna(False, inplace=True)
 y_train = np.ravel(train_reduc.poor.astype(int))
 del train_reduc['poor']
